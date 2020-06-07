@@ -31,10 +31,13 @@
 
 #import "MPOFaceServiceClient.h"
 
+static NSString *const DefaultEndpoint = @"https://westus.api.cognitive.microsoft.com/face/v1.0/";
+
 @interface MPOFaceServiceClient ()
 //private properties
 typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObject, NSError *error);
 @property NSString* subscriptionKey;
+@property NSString* endpoint;
 @end
 
 
@@ -45,15 +48,32 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
     self = [super init];
     if (self) {
         self.subscriptionKey = key;
+        self.endpoint = DefaultEndpoint;
     }
     
     return self;
 }
 
+- (id)initWithEndpointAndSubscriptionKey:(NSString *)endpoint key:(NSString *)key {
+
+    self = [super init];
+    if (self) {
+        if(![endpoint hasSuffix:@"/"]){
+            endpoint = [endpoint stringByAppendingString:@"/"];
+        }
+        self.endpoint = endpoint;
+        self.subscriptionKey = key;
+    }
+
+    return self;
+}
+
+
+
 #pragma mark Face
 /*
  * =============================================================
- * ================ Face =================
+ * ============================ Face ===========================
  * =============================================================
  */
 
@@ -64,22 +84,45 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
         if ([number isEqualToNumber:@(MPOFaceAttributeTypeAge)]) {
             [faceAttributesStringArray addObject:@"age"];
         }
-        
         if ([number isEqualToNumber:@(MPOFaceAttributeTypeGender)]) {
             [faceAttributesStringArray addObject:@"gender"];
         }
-        if ([number isEqualToNumber:@(MPOFaceAttributeTypeHeadPose)]) {
-            [faceAttributesStringArray addObject:@"headPose"];
-
-        }
         if ([number isEqualToNumber:@(MPOFaceAttributeTypeSmile)]) {
             [faceAttributesStringArray addObject:@"smile"];
-
+        }
+        if ([number isEqualToNumber:@(MPOFaceAttributeTypeGlasses)]) {
+            [faceAttributesStringArray addObject:@"glasses"];
         }
         if ([number isEqualToNumber:@(MPOFaceAttributeTypeFacialHair)]) {
             [faceAttributesStringArray addObject:@"facialHair"];
         }
-        
+        if ([number isEqualToNumber:@(MPOFaceAttributeTypeHeadPose)]) {
+            [faceAttributesStringArray addObject:@"headPose"];
+        }
+        if ([number isEqualToNumber:@(MPOFaceAttributeTypeEmotion)]) {
+            [faceAttributesStringArray addObject:@"emotion"];
+        }
+        if ([number isEqualToNumber:@(MPOFaceAttributeTypeHair)]) {
+            [faceAttributesStringArray addObject:@"hair"];
+        }
+        if ([number isEqualToNumber:@(MPOFaceAttributeTypeMakeup)]) {
+            [faceAttributesStringArray addObject:@"makeup"];
+        }
+        if ([number isEqualToNumber:@(MPOFaceAttributeTypeOcclusion)]) {
+            [faceAttributesStringArray addObject:@"occlusion"];
+        }
+        if ([number isEqualToNumber:@(MPOFaceAttributeTypeAccessories)]) {
+            [faceAttributesStringArray addObject:@"accessories"];
+        }
+        if ([number isEqualToNumber:@(MPOFaceAttributeTypeBlur)]) {
+            [faceAttributesStringArray addObject:@"blur"];
+        }
+        if ([number isEqualToNumber:@(MPOFaceAttributeTypeExposure)]) {
+            [faceAttributesStringArray addObject:@"exposure"];
+        }
+        if ([number isEqualToNumber:@(MPOFaceAttributeTypeNoise)]) {
+            [faceAttributesStringArray addObject:@"noise"];
+        }
     }
     
     NSString *joinedComponents = [faceAttributesStringArray componentsJoinedByString:@","];
@@ -96,6 +139,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
     }
 }
 
+//return FaceAttribute
 - (NSURLSessionDataTask *)detectWithUrl:(NSString *)url returnFaceId:(BOOL)returnFaceId returnFaceLandmarks:(BOOL)returnFaceLandmarks returnFaceAttributes:(NSArray *)returnFaceAttributes completionBlock:(MPOFaceArrayCompletionBlock)completion {
     
     NSMutableArray *responseCollection = [[NSMutableArray alloc] init];
@@ -107,20 +151,21 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
                                            @"returnFaceAttributes" : ObjectOrNull([self faceAttributesWithArray:returnFaceAttributes])}
                                 bodyData: nil
                               completion:^(NSURLResponse *response, id responseObject, NSError *error) {
-        
-        if (!error && [responseObject isKindOfClass:[NSArray class]]) {
-            
-            for (NSDictionary *face in responseObject) {
-                MPOFace *newFace = [[MPOFace alloc] initWithDictionary:face];
-                [responseCollection addObject:newFace];
-            }
-        }
-        
-        [self runCompletionOnMainQueueWithBlock:completion object:responseCollection error:error];
-    }];
-
+                                  
+                                  if (!error && [responseObject isKindOfClass:[NSArray class]]) {
+                                      
+                                      for (NSDictionary *face in responseObject) {
+                                          MPOFace *newFace = [[MPOFace alloc] initWithDictionary:face];
+                                          [responseCollection addObject:newFace];
+                                      }
+                                  }
+                                  
+                                  [self runCompletionOnMainQueueWithBlock:completion object:responseCollection error:error];
+                              }];
+    
 }
 
+//return FaceAttribute
 - (NSURLSessionDataTask *)detectWithData:(NSData *)data returnFaceId:(BOOL)returnFaceId returnFaceLandmarks:(BOOL)returnFaceLandmarks returnFaceAttributes:(NSArray *)returnFaceAttributes completionBlock:(MPOFaceArrayCompletionBlock)completion {
     
     NSMutableArray *responseCollection = [[NSMutableArray alloc] init];
@@ -145,6 +190,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
                               }];
 }
 
+//return VerifyResult
 - (NSURLSessionDataTask *)verifyWithFirstFaceId:(NSString *)faceId1 faceId2:(NSString *)faceId2 completionBlock:(void (^) (MPOVerifyResult *verifyResult, NSError *error))completion {
     
     return [self startTaskWithHttpMethod:@"POST" path:@"verify" parameters:@{@"faceId1" : faceId1, @"faceId2" : faceId2} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
@@ -152,18 +198,53 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
         MPOVerifyResult *verifyResult = nil;
         
         if (!error && [responseObject isKindOfClass:[NSDictionary class]]) {
-             verifyResult = [[MPOVerifyResult alloc] initWithDictionary:responseObject];
+            verifyResult = [[MPOVerifyResult alloc] initWithDictionary:responseObject];
         }
         
         [self runCompletionOnMainQueueWithBlock:completion object:verifyResult error:error];
     }];
 }
 
+//return VerifyResult
+- (NSURLSessionDataTask *)verifyWithFaceId:(NSString *)faceId personId:(NSString *)personId personGroupId:(NSString *)personGroupId completionBlock:(void (^) (MPOVerifyResult *verifyResult, NSError *error))completion {
+    
+    return [self startTaskWithHttpMethod:@"POST" path:@"verify" parameters:@{@"faceId" : faceId, @"personId" : personId, @"personGroupId": personGroupId} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOVerifyResult *verifyResult = nil;
+        
+        if (!error && [responseObject isKindOfClass:[NSDictionary class]]) {
+            verifyResult = [[MPOVerifyResult alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:verifyResult error:error];
+    }];
+}
+
+//return VerifyResult
+- (NSURLSessionDataTask *)verifyWithFaceId:(NSString *)faceId personId:(NSString *)personId largePersonGroupId:(NSString *)largePersonGroupId completionBlock:(void (^) (MPOVerifyResult *verifyResult, NSError *error))completion {
+    
+    return [self startTaskWithHttpMethod:@"POST" path:@"verify" parameters:@{@"faceId" : faceId, @"personId" : personId, @"largePersonGroupId": largePersonGroupId} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOVerifyResult *verifyResult = nil;
+        
+        if (!error && [responseObject isKindOfClass:[NSDictionary class]]) {
+            verifyResult = [[MPOVerifyResult alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:verifyResult error:error];
+    }];
+}
 
 //return IdentifyResult[]
 - (NSURLSessionDataTask *)identifyWithPersonGroupId:(NSString *)personGroupId faceIds:(NSArray *)faceIds maxNumberOfCandidates:(NSInteger)maxNumberOfCandidates completionBlock:(MPOIdentifyResultArrayCompletionBlock)completion {
     
-    return [self startTaskWithHttpMethod:@"POST" path:@"identify" parameters:@{@"faceIds" : faceIds, @"personGroupId" : personGroupId, @"maxNumOfCandidatesReturned" : [NSNumber numberWithInteger:maxNumberOfCandidates]} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+    return [self identifyWithPersonGroupId:personGroupId faceIds:faceIds maxNumberOfCandidates:maxNumberOfCandidates confidenceThreshold:0.5 completionBlock:completion];
+}
+
+//return IdentifyResult[]
+- (NSURLSessionDataTask *)identifyWithPersonGroupId:(NSString *)personGroupId faceIds:(NSArray *)faceIds maxNumberOfCandidates:(NSInteger)maxNumberOfCandidates confidenceThreshold:(CGFloat)confidenceThreshold completionBlock:(MPOIdentifyResultArrayCompletionBlock)completion {
+    
+    return [self startTaskWithHttpMethod:@"POST" path:@"identify" parameters:@{@"faceIds" : faceIds, @"personGroupId" : personGroupId, @"maxNumOfCandidatesReturned" : [NSNumber numberWithInteger:maxNumberOfCandidates], @"confidenceThreshold":[NSNumber numberWithFloat:confidenceThreshold]} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
         
         NSMutableArray *identifyResults = [[NSMutableArray alloc] init];
         
@@ -179,25 +260,108 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
     }];
 }
 
+//return IdentifyResult[]
+- (NSURLSessionDataTask *)identifyWithLargePersonGroupId:(NSString *)largePersonGroupId faceIds:(NSArray *)faceIds maxNumberOfCandidates:(NSInteger)maxNumberOfCandidates completionBlock:(MPOIdentifyResultArrayCompletionBlock)completion {
+    return [self identifyWithLargePersonGroupId:largePersonGroupId faceIds:faceIds maxNumberOfCandidates:maxNumberOfCandidates confidenceThreshold:0.5 completionBlock:completion];
+}
+
+//return IdentifyResult[]
+- (NSURLSessionDataTask *)identifyWithLargePersonGroupId:(NSString *)largePersonGroupId faceIds:(NSArray *)faceIds maxNumberOfCandidates:(NSInteger)maxNumberOfCandidates confidenceThreshold:(CGFloat)confidenceThreshold completionBlock:(MPOIdentifyResultArrayCompletionBlock)completion {
+    return [self startTaskWithHttpMethod:@"POST" path:@"identify" parameters:@{@"faceIds" : faceIds, @"LargePersonGroupId" : largePersonGroupId, @"maxNumOfCandidatesReturned" : [NSNumber numberWithInteger:maxNumberOfCandidates], @"confidenceThreshold":[NSNumber numberWithFloat:confidenceThreshold]} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        NSMutableArray *identifyResults = [[NSMutableArray alloc] init];
+        
+        if (!error && [responseObject isKindOfClass:[NSArray class]]) {
+            
+            for (id obj in responseObject) {
+                MPOIdentifyResult *identifyResult = [[MPOIdentifyResult alloc] initWithDictionary:obj];
+                [identifyResults addObject:identifyResult];
+            }
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:identifyResults error:error];
+    }];
+}
 
 //return SimilarFace[]
 - (NSURLSessionDataTask *)findSimilarWithFaceId:(NSString *)faceId faceIds:(NSArray *)faceIds completionBlock:(MPOSimilarFaceArrayCompletionBlock)completion {
+    
+    return [self findSimilarWithFaceId:faceId faceIds:faceIds maxNumOfCandidatesReturned:20 mode:MPOSimilarFaceSearchingModeMatchPerson completionBlock:completion];
+}
 
-    return [self startTaskWithHttpMethod:@"POST" path:@"findsimilars" parameters:@{@"faceId" : faceId, @"faceIds" : faceIds} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+//return SimilarFace[]
+- (NSURLSessionDataTask *)findSimilarWithFaceId:(NSString *)faceId faceIds:(NSArray *)faceIds maxNumOfCandidatesReturned:(NSInteger)maxNumOfCandidatesReturned mode:(MPOSimilarFaceSearchingMode)mode completionBlock:(MPOSimilarFaceArrayCompletionBlock)completion {
+    NSDictionary * param = nil;
+    NSString * modeString = (mode == MPOSimilarFaceSearchingModeMatchPerson) ? @"matchPerson" : @"matchFace";
+    
+    param = @{@"faceId" : faceId, @"faceIds" : faceIds, @"maxNumOfCandidatesReturned" : @(maxNumOfCandidatesReturned), @"mode" : modeString};
+    
+    return [self startTaskWithHttpMethod:@"POST" path:@"findsimilars" parameters:param urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
         
         NSMutableArray *similarFaces = [[NSMutableArray alloc] init];
-
+        
         if (!error) {
             for (id faceObj in responseObject) {
                 NSString *faceId = faceObj[@"faceId"];
-                
+                NSNumber *confidence = faceObj[@"confidence"];
                 MPOSimilarFace *similarFace = [[MPOSimilarFace alloc] init];
                 similarFace.faceId = faceId;
+                similarFace.confidence = confidence;
                 [similarFaces addObject:similarFace];
             }
         }
         
         [self runCompletionOnMainQueueWithBlock:completion object:similarFaces error:error];
+    }];
+}
+
+//return SimilarFace[]
+- (NSURLSessionDataTask *)findSimilarWithFaceId:(NSString *)faceId faceListId:(NSString *)faceListId completionBlock:(MPOSimilarPersistedFaceArrayCompletionBlock)completion {
+    
+    return [self findSimilarWithFaceId:faceId faceListId:faceListId largeFaceListId:nil maxNumOfCandidatesReturned:20 mode:MPOSimilarFaceSearchingModeMatchPerson completionBlock:completion];
+}
+
+//return SimilarFace[]
+- (NSURLSessionDataTask *)findSimilarWithFaceId:(NSString *)faceId largeFaceListId:(NSString *)largeFaceListId completionBlock:(MPOSimilarPersistedFaceArrayCompletionBlock)completion {
+    
+    return [self findSimilarWithFaceId:faceId faceListId:nil largeFaceListId:largeFaceListId maxNumOfCandidatesReturned:20 mode:MPOSimilarFaceSearchingModeMatchPerson completionBlock:completion];
+}
+
+//return SimilarFace[]
+- (NSURLSessionDataTask *)findSimilarWithFaceId:(NSString *)faceId faceListId:(NSString *)faceListId maxNumOfCandidatesReturned:(NSInteger)maxNumOfCandidatesReturned mode:(MPOSimilarFaceSearchingMode)mode completionBlock:(MPOSimilarPersistedFaceArrayCompletionBlock)completion {
+    return [self findSimilarWithFaceId:faceId faceListId:faceListId largeFaceListId:nil maxNumOfCandidatesReturned:maxNumOfCandidatesReturned mode:mode completionBlock:completion];
+}
+
+//return SimilarFace[]
+- (NSURLSessionDataTask *)findSimilarWithFaceId:(NSString *)faceId largeFaceListId:(NSString *)largeFaceListId maxNumOfCandidatesReturned:(NSInteger)maxNumOfCandidatesReturned mode:(MPOSimilarFaceSearchingMode)mode completionBlock:(MPOSimilarPersistedFaceArrayCompletionBlock)completion {
+    return [self findSimilarWithFaceId:faceId faceListId:nil largeFaceListId:largeFaceListId maxNumOfCandidatesReturned:maxNumOfCandidatesReturned mode:mode completionBlock:completion];
+}
+
+//return SimilarFace[]
+- (NSURLSessionDataTask *)findSimilarWithFaceId:(NSString *)faceId faceListId:(NSString *)faceListId largeFaceListId:(NSString *)largeFaceListId maxNumOfCandidatesReturned:(NSInteger)maxNumOfCandidatesReturned mode:(MPOSimilarFaceSearchingMode)mode completionBlock:(MPOSimilarPersistedFaceArrayCompletionBlock)completion {
+    NSDictionary * param = nil;
+    NSString * modeString = (mode == MPOSimilarFaceSearchingModeMatchPerson) ? @"matchPerson" : @"matchFace";
+    if (faceListId) {
+        param = @{@"faceId" : faceId, @"faceListId" : faceListId, @"maxNumOfCandidatesReturned" : @(maxNumOfCandidatesReturned), @"mode" : modeString};
+    } else if (largeFaceListId) {
+        param = @{@"faceId" : faceId, @"largeFaceListId" : largeFaceListId, @"maxNumOfCandidatesReturned" : @(maxNumOfCandidatesReturned), @"mode" : modeString};
+    }
+    return [self startTaskWithHttpMethod:@"POST" path:@"findsimilars" parameters:param urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        NSMutableArray *similarPersistedFaces = [[NSMutableArray alloc] init];
+        
+        if (!error) {
+            for (id faceObj in responseObject) {
+                NSString *persistedFaceId = faceObj[@"persistedFaceId"];
+                NSNumber *confidence = faceObj[@"confidence"];
+                MPOSimilarPersistedFace *similarPersistedFace = [[MPOSimilarPersistedFace alloc] init];
+                similarPersistedFace.persistedFaceId = persistedFaceId;
+                similarPersistedFace.confidence = confidence;
+                [similarPersistedFaces addObject:similarPersistedFace];
+            }
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:similarPersistedFaces error:error];
     }];
 }
 
@@ -219,9 +383,9 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
 #pragma mark PersonGroups
 /*
  * =============================================================
- * ================ PersonGroups =================
+ * ======================== PersonGroups =======================
  * =============================================================
-*/
+ */
 
 - (NSURLSessionDataTask *)createPersonGroupWithId:(NSString *)personGroupId name:(NSString *)name userData:(NSString *)userData completionBlock:(MPOCompletionBlock)completion {
     
@@ -234,7 +398,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
 - (NSURLSessionDataTask *)getPersonGroupWithPersonGroupId:(NSString *)personGroupId completionBlock:(void (^) (MPOPersonGroup *personGroup, NSError *error))completion {
     
     return [self startTaskWithHttpMethod:@"GET" path:[NSString stringWithFormat:@"persongroups/%@", personGroupId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
-       
+        
         MPOPersonGroup *personGroup = nil;
         
         if (!error) {
@@ -248,7 +412,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
 - (NSURLSessionDataTask *)updatePersonGroupWithPersonGroupId:(NSString *)personGroupId name:(NSString *)name userData:(NSString *)userData completionBlock:(MPOCompletionBlock)completion {
     
     return [self startTaskWithHttpMethod:@"PATCH" path:[NSString stringWithFormat:@"persongroups/%@", personGroupId] parameters:@{@"name" : name, @"userData" : ObjectOrNull(userData)} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
-       
+        
         [self runCompletionOnMainQueueWithBlock:completion error:error];
     }];
 }
@@ -256,16 +420,30 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
 - (NSURLSessionDataTask *)deletePersonGroupWithPersonGroupId:(NSString *)personGroupId completionBlock:(MPOCompletionBlock)completion {
     
     return [self startTaskWithHttpMethod:@"DELETE" path:[NSString stringWithFormat:@"persongroups/%@", personGroupId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
-       
+        
         [self runCompletionOnMainQueueWithBlock:completion error:error];
     }];
 }
 
 - (NSURLSessionDataTask *)getPersonGroupsWithCompletion:(MPOPersonGroupArrayCompletionBlock)completion {
-    return [self startTaskWithHttpMethod:@"GET" path:@"persongroups" parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+    
+    return [self listPersonGroupsWithStart:nil top:1000 completionBlock:completion];
+}
+
+- (NSURLSessionDataTask *)listPersonGroupsWithCompletion:(MPOPersonGroupArrayCompletionBlock)completion {
+    
+    return [self listPersonGroupsWithStart:nil top:1000 completionBlock:completion];
+}
+
+- (NSURLSessionDataTask *)listPersonGroupsWithStart:(NSString*)start top:(NSInteger)top completionBlock:(MPOPersonGroupArrayCompletionBlock)completion {
+    NSString * url = [NSString stringWithFormat:@"persongroups?top=%ld", (long)top];
+    if (start != nil) {
+        url = [url stringByAppendingString:[NSString stringWithFormat:@"&start=%@", start]];
+    }
+    return [self startTaskWithHttpMethod:@"GET" path:url parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
         
         NSMutableArray *responseCollection = [[NSMutableArray alloc] init];
-
+        
         if (!error) {
             for (id obj in responseObject) {
                 MPOPersonGroup *personGroup = [[MPOPersonGroup alloc] initWithDictionary:obj];
@@ -289,7 +467,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
     
     return [self startTaskWithHttpMethod:@"GET" path:[NSString stringWithFormat:@"persongroups/%@/training", personGroupId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
         MPOTrainingStatus *trainingStatus = nil;
-
+        
         if (!error) {
             trainingStatus = [[MPOTrainingStatus alloc] initWithDictionary:responseObject];
         }
@@ -299,19 +477,115 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
     
 }
 
+#pragma mark LargePersonGroups
+/*
+ * =============================================================
+ * ===================== LargePersonGroups =====================
+ * =============================================================
+ */
 
+//return success
+- (NSURLSessionDataTask *)createLargePersonGroup:(NSString *)largePersonGroupId name:(NSString *)name userData:(NSString *)userData completionBlock:(MPOCompletionBlock)completion {
+    
+    return [self startTaskWithHttpMethod:@"PUT" path:[NSString stringWithFormat:@"largepersongroups/%@", largePersonGroupId] parameters:@{@"name" : name, @"userData" : ObjectOrNull(userData)} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return success
+- (NSURLSessionDataTask *)deleteLargePersonGroup:(NSString *)largePersonGroupId completionBlock:(MPOCompletionBlock)completion {
+    
+    return [self startTaskWithHttpMethod:@"DELETE" path:[NSString stringWithFormat:@"largepersongroups/%@", largePersonGroupId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return success
+- (NSURLSessionDataTask *)updateLargePersonGroup:(NSString *)largePersonGroupId name:(NSString *)name userData:(NSString *)userData completionBlock:(MPOCompletionBlock)completion {
+    
+    return [self startTaskWithHttpMethod:@"PATCH" path:[NSString stringWithFormat:@"largepersongroups/%@", largePersonGroupId] parameters:@{@"name" : name, @"userData" : ObjectOrNull(userData)} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return LargePersonGroup
+- (NSURLSessionDataTask *)getLargePersonGroup:(NSString *)largePersonGroupId completionBlock:(void (^) (MPOLargePersonGroup *largePersonGroup, NSError *error))completion {
+    
+    return [self startTaskWithHttpMethod:@"GET" path:[NSString stringWithFormat:@"largepersongroups/%@", largePersonGroupId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOLargePersonGroup *largePersonGroup = nil;
+        
+        if (!error) {
+            largePersonGroup = [[MPOLargePersonGroup alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:largePersonGroup error:error];
+    }];
+}
+
+//return LargePersonGroup[]
+- (NSURLSessionDataTask *)listLargePersonGroupsWithCompletion:(MPOLargePersonGroupArrayCompletionBlock)completion {
+   return [self listLargePersonGroupsWithStartAndTop:nil top:1000 completionBlock:completion];
+}
+
+//return LargePersonGroup[]
+- (NSURLSessionDataTask *)listLargePersonGroupsWithStartAndTop:(NSString *)start top:(NSInteger)top completionBlock:(MPOLargePersonGroupArrayCompletionBlock)completion {
+    NSString * url = [NSString stringWithFormat:@"largepersongroups?top=%ld", (long)top];
+    if (start != nil) {
+        url = [url stringByAppendingString:[NSString stringWithFormat:@"&start=%@", start]];
+    }
+    return [self startTaskWithHttpMethod:@"GET" path:url parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        NSMutableArray *responseCollection = [[NSMutableArray alloc] init];
+        
+        if (!error) {
+            for (id obj in responseObject) {
+                MPOLargePersonGroup *largePersonGroup = [[MPOLargePersonGroup alloc] initWithDictionary:obj];
+                [responseCollection addObject:largePersonGroup];
+            }
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:responseCollection error:error];
+    }];
+}
+
+//return success
+- (NSURLSessionDataTask *)trainLargePersonGroup:(NSString *)largePersonGroupId completionBlock:(MPOCompletionBlock)completion {
+    return [self startTaskWithHttpMethod:@"POST" path:[NSString stringWithFormat:@"largepersongroups/%@/train", largePersonGroupId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return TrainingStatus
+- (NSURLSessionDataTask *)getLargePersonGroupTrainingStatus:(NSString *)largePersonGroupId completionBlock:(void (^) (MPOTrainingStatus *trainingStatus, NSError *error))completion {
+    
+    return [self startTaskWithHttpMethod:@"GET" path:[NSString stringWithFormat:@"largepersongroups/%@/training", largePersonGroupId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        MPOTrainingStatus *trainingStatus = nil;
+        
+        if (!error) {
+            trainingStatus = [[MPOTrainingStatus alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:trainingStatus error:error];
+    }];
+    
+}
 
 #pragma mark Person
 /*
  * =============================================================
- * ================ Person =================
+ * =========================== Person ==========================
  * =============================================================
  */
 
 - (NSURLSessionDataTask *)createPersonWithPersonGroupId:(NSString *)personGroupId name:(NSString *)name userData:(NSString *)userData completionBlock:(void (^) (MPOCreatePersonResult *createPersonResult, NSError *error))completion {
     
     return [self startTaskWithHttpMethod:@"POST" path:[NSString stringWithFormat:@"persongroups/%@/persons", personGroupId] parameters:@{@"name" : name, @"userData" : ObjectOrNull(userData)} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
-
+        
         MPOCreatePersonResult *personResult = nil;
         
         if (!error) {
@@ -327,7 +601,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
 - (NSURLSessionDataTask *)getPersonWithPersonGroupId:(NSString *)personGroupId personId:(NSString *)personId completionBlock:(void (^) (MPOPerson *person, NSError *error))completion {
     
     return [self startTaskWithHttpMethod:@"GET" path:[NSString stringWithFormat:@"persongroups/%@/persons/%@", personGroupId, personId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
-       
+        
         MPOPerson *personResult = nil;
         
         if (!error) {
@@ -340,7 +614,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
 }
 
 - (NSURLSessionDataTask *)updatePersonWithPersonGroupId:(NSString *)personGroupId personId:(NSString *)personId name:(NSString *)name userData:(NSString *)userData completionBlock:(MPOCompletionBlock)completion {
-
+    
     return [self startTaskWithHttpMethod:@"PATCH" path:[NSString stringWithFormat:@"persongroups/%@/persons/%@", personGroupId, personId] parameters:@{@"name" : name, @"userData" : ObjectOrNull(userData)} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
         
         [self runCompletionOnMainQueueWithBlock:completion error:error];
@@ -356,9 +630,22 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
 }
 
 - (NSURLSessionDataTask *)getPersonsWithPersonGroupId:(NSString *)personGroupId completionBlock:(MPOPersonArrayCompletionBlock)completion {
- 
-    return [self startTaskWithHttpMethod:@"GET" path:[NSString stringWithFormat:@"persongroups/%@/persons", personGroupId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
-       
+    
+    return [self listPersonsWithPersonGroupIdAndStart:personGroupId start:nil top:1000 completionBlock:completion];
+}
+
+- (NSURLSessionDataTask *)listPersonsWithPersonGroupId:(NSString *)personGroupId completionBlock:(MPOPersonArrayCompletionBlock)completion {
+    
+    return [self listPersonsWithPersonGroupIdAndStart:personGroupId start:nil top:1000 completionBlock:completion];
+}
+
+- (NSURLSessionDataTask *)listPersonsWithPersonGroupIdAndStart:(NSString *)personGroupId start:(NSString *)start top:(NSInteger)top completionBlock:(MPOPersonArrayCompletionBlock)completion {
+    NSString * url = [NSString stringWithFormat:@"persongroups/%@/persons?top=%ld", personGroupId, (long)top];
+    if (start != nil) {
+        url = [url stringByAppendingString:[NSString stringWithFormat:@"&start=%@", start]];
+    }
+    return [self startTaskWithHttpMethod:@"GET" path:url parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
         NSMutableArray *personCollection = [[NSMutableArray alloc] init];
         
         if (!error) {
@@ -371,8 +658,98 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
         
         [self runCompletionOnMainQueueWithBlock:completion object:personCollection error:error];
     }];
+}
+
+#pragma mark Person in Large Person Group
+/*
+ * =============================================================
+ * ================ Person in Large Person Group ===============
+ * =============================================================
+ */
+
+//return CreatePersonResult
+- (NSURLSessionDataTask *)createPersonWithLargePersonGroupId:(NSString *)largePersonGroupId name:(NSString *)name userData:(NSString *)userData completionBlock:(void (^) (MPOCreatePersonResult *createPersonResult, NSError *error))completion {
+    
+    return [self startTaskWithHttpMethod:@"POST" path:[NSString stringWithFormat:@"largepersongroups/%@/persons", largePersonGroupId] parameters:@{@"name" : name, @"userData" : ObjectOrNull(userData)} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOCreatePersonResult *personResult = nil;
+        
+        if (!error) {
+            personResult = [[MPOCreatePersonResult alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:personResult error:error];
+    }];
     
 }
+
+//return success
+- (NSURLSessionDataTask *)deletePersonWithLargePersonGroupId:(NSString *)largePersonGroupId personId:(NSString *)personId completionBlock:(MPOCompletionBlock)completion {
+    
+    return [self startTaskWithHttpMethod:@"DELETE" path:[NSString stringWithFormat:@"largepersongroups/%@/persons/%@", largePersonGroupId, personId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return success
+- (NSURLSessionDataTask *)updatePersonWithLargePersonGroupId:(NSString *)largePersonGroupId personId:(NSString *)personId name:(NSString *)name userData:(NSString *)userData completionBlock:(MPOCompletionBlock)completion{
+    
+    return [self startTaskWithHttpMethod:@"PATCH" path:[NSString stringWithFormat:@"largepersongroups/%@/persons/%@", largePersonGroupId, personId] parameters:@{@"name" : name, @"userData" : ObjectOrNull(userData)} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return Person
+- (NSURLSessionDataTask *)getPersonWithLargePersonGroupId:(NSString *)largePersonGroupId personId:(NSString *)personId completionBlock:(void (^) (MPOPerson *person, NSError *error))completion {
+    
+    return [self startTaskWithHttpMethod:@"GET" path:[NSString stringWithFormat:@"largepersongroups/%@/persons/%@", largePersonGroupId, personId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOPerson *personResult = nil;
+        
+        if (!error) {
+            personResult = [[MPOPerson alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:personResult error:error];
+    }];
+    
+}
+
+//return Person[]
+- (NSURLSessionDataTask *)listPersonsWithLargePersonGroupId:(NSString *)largePersonGroupId completionBlock:(MPOPersonArrayCompletionBlock)completion {
+    
+    return [self listPersonsWithLargePersonGroupIdWithStartAndTop:largePersonGroupId start:nil top:1000 completionBlock:completion];
+}
+
+//return Person[]
+- (NSURLSessionDataTask *)listPersonsWithLargePersonGroupIdWithStartAndTop:(NSString *)largePersonGroupId start:(NSString *)start top:(NSInteger)top completionBlock:(MPOPersonArrayCompletionBlock)completion {
+    NSString * url = [NSString stringWithFormat:@"largepersongroups/%@/persons?top=%ld", largePersonGroupId, (long)top];
+    if (start != nil) {
+        url = [url stringByAppendingString:[NSString stringWithFormat:@"&start=%@", start]];
+    }
+    return [self startTaskWithHttpMethod:@"GET" path:url parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        NSMutableArray *personCollection = [[NSMutableArray alloc] init];
+        
+        if (!error) {
+            for (id obj in responseObject) {
+                MPOPerson *person = [[MPOPerson alloc] initWithDictionary:obj];
+                [personCollection addObject:person];
+            }
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:personCollection error:error];
+    }];
+}
+
+#pragma mark Person Face
+/*
+ * =============================================================
+ * ======================== Person Face ========================
+ * =============================================================
+ */
 
 - (NSURLSessionDataTask *)getPersonFaceWithPersonGroupId:(NSString *)personGroupId personId:(NSString *)personId persistedFaceId:(NSString *)persistedFaceId completionBlock:(void (^) (MPOPersonFace *personFace, NSError *error))completion {
     
@@ -408,7 +785,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
 
 
 - (NSURLSessionDataTask *)addPersonFaceWithPersonGroupId:(NSString *)personGroupId personId:(NSString *)personId url:(NSString *)url userData:(NSString *)userData faceRectangle:(MPOFaceRectangle *)faceRectangle completionBlock:(void (^) (MPOAddPersistedFaceResult *addPersistedFaceResult, NSError *error))completion {
-
+    
     return [self startTaskWithHttpMethod:@"POST" path:[NSString stringWithFormat:@"persongroups/%@/persons/%@/persistedFaces", personGroupId, personId] parameters:@{@"url" : url} urlParams:@{@"userData" : ObjectOrNull(userData), @"targetFace" : ObjectOrNull([self faceRectangleStringRepresentation:faceRectangle])} bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
         
         MPOAddPersistedFaceResult *addPersistedFaceResult = nil;
@@ -436,10 +813,83 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
     }];
 }
 
+#pragma mark Person Face in Large Person Group
+/*
+ * =============================================================
+ * ============ Person Face in Large Person Group ==============
+ * =============================================================
+ */
+
+//return AddPersistedFaceResult
+- (NSURLSessionDataTask *)addPersonFaceWithLargePersonGroupId:(NSString *)largePersonGroupId personId:(NSString *)personId url:(NSString *)url userData:(NSString *)userData faceRectangle:(MPOFaceRectangle *)faceRectangle completionBlock:(void (^) (MPOAddPersistedFaceResult *addPersistedFaceResult, NSError *error))completion {
+    
+    return [self startTaskWithHttpMethod:@"POST" path:[NSString stringWithFormat:@"largepersongroups/%@/persons/%@/persistedFaces", largePersonGroupId, personId] parameters:@{@"url" : url} urlParams:@{@"userData" : ObjectOrNull(userData), @"targetFace" : ObjectOrNull([self faceRectangleStringRepresentation:faceRectangle])} bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOAddPersistedFaceResult *addPersistedFaceResult = nil;
+        
+        if (!error) {
+            addPersistedFaceResult = [[MPOAddPersistedFaceResult alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:addPersistedFaceResult error:error];
+    }];
+    
+}
+
+//return AddPersistedFaceResult
+- (NSURLSessionDataTask *)addPersonFaceWithLargePersonGroupId:(NSString *)largePersonGroupId personId:(NSString *)personId data:(NSData *)data userData:(NSString *)userData faceRectangle:(MPOFaceRectangle *)faceRectangle completionBlock:(void (^) (MPOAddPersistedFaceResult *addPersistedFaceResult, NSError *error))completion {
+    
+    return [self startTaskWithHttpMethod:@"POST" path:[NSString stringWithFormat:@"largepersongroups/%@/persons/%@/persistedFaces", largePersonGroupId, personId] parameters:nil urlParams:@{@"userData" : ObjectOrNull(userData), @"targetFace" : ObjectOrNull([self faceRectangleStringRepresentation:faceRectangle])} bodyData:data completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOAddPersistedFaceResult *addPersistedFaceResult = nil;
+        
+        if (!error) {
+            addPersistedFaceResult = [[MPOAddPersistedFaceResult alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:addPersistedFaceResult error:error];
+    }];
+}
+
+//return success
+- (NSURLSessionDataTask *)deletePersonFaceWithLargePersonGroupId:(NSString *)largePersonGroupId personId:(NSString *)personId persistedFaceId:(NSString *)persistedFaceId completionBlock:(MPOCompletionBlock)completion {
+    
+    return [self startTaskWithHttpMethod:@"DELETE" path:[NSString stringWithFormat:@"largepersongroups/%@/persons/%@/persistedFaces/%@", largePersonGroupId, personId, persistedFaceId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+    
+}
+
+//return success
+- (NSURLSessionDataTask *)updatePersonFaceWithLargePersonGroupId:(NSString *)largePersonGroupId personId:(NSString *)personId persistedFaceId:(NSString *)persistedFaceId userData:(NSString *)userData completionBlock:(MPOCompletionBlock)completion {
+    
+    return [self startTaskWithHttpMethod:@"PATCH" path:[NSString stringWithFormat:@"largepersongroups/%@/persons/%@/persistedFaces/%@", largePersonGroupId, personId, persistedFaceId] parameters:@{@"userData" : userData} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return Face
+- (NSURLSessionDataTask *)getPersonFaceWithLargePersonGroupId:(NSString *)largePersonGroupId personId:(NSString *)personId persistedFaceId:(NSString *)persistedFaceId completionBlock:(void (^) (MPOPersonFace *personFace, NSError *error))completion {
+    
+    return [self startTaskWithHttpMethod:@"GET" path:[NSString stringWithFormat:@"largepersongroups/%@/persons/%@/persistedFaces/%@", largePersonGroupId, personId, persistedFaceId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOPersonFace *personFace = nil;
+        
+        if (!error) {
+            personFace = [[MPOPersonFace alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:personFace error:error];
+    }];
+    
+}
+
 #pragma mark FaceLists
 /*
  * =============================================================
- * ================ FaceLists =================
+ * ========================= FaceLists =========================
  * =============================================================
  */
 //return success
@@ -481,7 +931,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
         }
         
         [self runCompletionOnMainQueueWithBlock:completion object:faceList error:error];
-
+        
         
     }];
 }
@@ -503,7 +953,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
 }
 
 //return success
-- (NSURLSessionDataTask *)deleteFacesFromFaceListWithFaceListId:(NSString *)faceListId name:(NSString *)name persistedFaceId:(NSString *)persistedFaceId completionBlock:(MPOCompletionBlock)completion {
+- (NSURLSessionDataTask *)deleteFaceFromFaceListWithFaceListId:(NSString *)faceListId name:(NSString *)name persistedFaceId:(NSString *)persistedFaceId completionBlock:(MPOCompletionBlock)completion {
     return [self startTaskWithHttpMethod:@"DELETE" path:[NSString stringWithFormat:@"facelists/%@/persistedFaces/%@", faceListId, persistedFaceId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
         
         [self runCompletionOnMainQueueWithBlock:completion error:error];
@@ -511,7 +961,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
 }
 
 //return AddPersistedFaceResult
-- (NSURLSessionDataTask *)addFacesToFaceListWithFaceListId:(NSString *)faceListId url:(NSString *)url userData:(NSString *)userData faceRectangle:(MPOFaceRectangle *)faceRectangle completionBlock:(void (^) (MPOAddPersistedFaceResult *addPersistedFaceResult, NSError *error))completion {
+- (NSURLSessionDataTask *)addFaceToFaceListWithFaceListId:(NSString *)faceListId url:(NSString *)url userData:(NSString *)userData faceRectangle:(MPOFaceRectangle *)faceRectangle completionBlock:(void (^) (MPOAddPersistedFaceResult *addPersistedFaceResult, NSError *error))completion {
     
     return [self startTaskWithHttpMethod:@"POST" path:[NSString stringWithFormat:@"facelists/%@/persistedFaces", faceListId] parameters:@{@"url" : url} urlParams: @{@"userData" : ObjectOrNull(userData), @"targetFace" : ObjectOrNull([self faceRectangleStringRepresentation:faceRectangle])} bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
         
@@ -541,17 +991,196 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
 }
 
 
+#pragma mark LargeFaceLists
+/*
+ * =============================================================
+ * ======================= LargeFaceLists ======================
+ * =============================================================
+ */
+
+//return success
+- (NSURLSessionDataTask *)createLargeFaceList:(NSString *)largeFaceListId name:(NSString *)name userData:(NSString *)userData completionBlock:(MPOCompletionBlock)completion {
+    
+    return [self startTaskWithHttpMethod:@"PUT" path:[NSString stringWithFormat:@"largefacelists/%@", largeFaceListId] parameters:@{@"name" : name, @"userData" : ObjectOrNull(userData)} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return success
+- (NSURLSessionDataTask *)deleteLargeFaceList:(NSString *)largeFaceListId name:(NSString *)name userData:(NSString *)userData completionBlock:(MPOCompletionBlock)completion {
+    return [self startTaskWithHttpMethod:@"DELETE" path:[NSString stringWithFormat:@"largefacelists/%@", largeFaceListId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return LargeFaceList
+- (NSURLSessionDataTask *)getLargeFaceList:(NSString *)largeFaceListId completionBlock:(void (^) (MPOLargeFaceList *largeFaceList, NSError *error))completion {
+    return [self startTaskWithHttpMethod:@"GET" path:[NSString stringWithFormat:@"largefacelists/%@", largeFaceListId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOLargeFaceList *largeFaceList = nil;
+        
+        if (!error) {
+            largeFaceList = [[MPOLargeFaceList alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:largeFaceList error:error];
+    }];
+}
+
+//return LargeFaceList[]
+- (NSURLSessionDataTask *) listLargeFaceListsWithCompletion:(MPOLargeFaceListArrayCompletionBlock)completion {
+    return [self listLargeFaceListsWithStartAndTop:nil top:1000 completionBlock:completion];
+}
+
+//return LargeFaceList[]
+- (NSURLSessionDataTask *) listLargeFaceListsWithStartAndTop:(NSString*)start top:(NSInteger)top completionBlock:(MPOLargeFaceListArrayCompletionBlock)completion {
+    NSString * url = [NSString stringWithFormat:@"largefacelists?top=%ld", (long)top];
+    if (start != nil) {
+        url = [url stringByAppendingString:[NSString stringWithFormat:@"&start=%@", start]];
+    }
+    return [self startTaskWithHttpMethod:@"GET" path:url parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        NSMutableArray *largeFaceListArray = [[NSMutableArray alloc] init];
+        if (!error) {
+            
+            for (id obj in responseObject) {
+                MPOLargeFaceList *faceList = [[MPOLargeFaceList alloc] initWithDictionary:obj];
+                [largeFaceListArray addObject:faceList];
+            }
+        }
+        [self runCompletionOnMainQueueWithBlock:completion object:largeFaceListArray error:error];
+    }];
+    
+}
+
+//return success
+- (NSURLSessionDataTask *) updateLargeFaceList:(NSString *)largeFaceListId name:(NSString *)name userData:(NSString *)userData completionBlock:(MPOCompletionBlock)completion {
+    return [self startTaskWithHttpMethod:@"PATCH" path:[NSString stringWithFormat:@"largefacelists/%@", largeFaceListId] parameters:@{@"name" : name, @"userData" : ObjectOrNull(userData)} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return success
+- (NSURLSessionDataTask *) trainLargeFaceList:(NSString *)largeFaceListId completionBlock:(MPOCompletionBlock)completion {
+    return [self startTaskWithHttpMethod:@"POST" path:[NSString stringWithFormat:@"largefacelists/%@/train", largeFaceListId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return TrainingStatus
+- (NSURLSessionDataTask *) getLargeFaceListTrainingStatus:(NSString *)largeFaceListId completionBlock:(void (^)(MPOTrainingStatus *trainingStatus, NSError *error))completion {
+    return [self startTaskWithHttpMethod:@"GET" path:[NSString stringWithFormat:@"largefacelists/%@/training", largeFaceListId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        MPOTrainingStatus *trainingStatus = nil;
+        
+        if (!error) {
+            trainingStatus = [[MPOTrainingStatus alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:trainingStatus error:error];
+    }];
+}
+
+#pragma mark Face in LargeFaceLists
+
+//return AddPersistedFaceResult
+- (NSURLSessionDataTask *)addFaceInLargeFaceList:(NSString *)largeFaceListId url:(NSString *)url userData:(NSString *)userData faceRectangle:(MPOFaceRectangle *)faceRectangle completionBlock:(void (^)(MPOAddPersistedFaceResult *addPersistedFaceResult, NSError *error))completion {
+    return [self startTaskWithHttpMethod:@"POST" path:[NSString stringWithFormat:@"largefacelists/%@/persistedFaces", largeFaceListId] parameters:@{@"url" : url} urlParams: @{@"userData" : ObjectOrNull(userData), @"targetFace" : ObjectOrNull([self faceRectangleStringRepresentation:faceRectangle])} bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOAddPersistedFaceResult *addPersistedFaceResult = nil;
+        
+        if (!error) {
+            addPersistedFaceResult = [[MPOAddPersistedFaceResult alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:addPersistedFaceResult error:error];
+    }];
+}
+
+//return AddPersistedFaceResult
+- (NSURLSessionDataTask *)addFaceInLargeFaceList:(NSString *)largeFaceListId data:(NSData *)data userData:(NSString *)userData faceRectangle:(MPOFaceRectangle *)faceRectangle completionBlock:(void (^)(MPOAddPersistedFaceResult *addPersistedFaceResult, NSError *error))completion {
+    
+    return [self startTaskWithHttpMethod:@"POST" path:[NSString stringWithFormat:@"largefacelists/%@/persistedFaces", largeFaceListId] parameters:nil urlParams: @{@"userData" : ObjectOrNull(userData), @"targetFace": ObjectOrNull([self faceRectangleStringRepresentation:faceRectangle])} bodyData:data completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOAddPersistedFaceResult *addPersistedFaceResult = nil;
+        
+        if (!error) {
+            addPersistedFaceResult = [[MPOAddPersistedFaceResult alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:addPersistedFaceResult error:error];
+    }];
+}
+
+//return success
+- (NSURLSessionDataTask *)deleteFaceFromLargeFaceList:(NSString *)largeFaceListId persistedFaceId:(NSString *)persistedFaceId completionBlock:(MPOCompletionBlock)completion {
+    return [self startTaskWithHttpMethod:@"DELETE" path:[NSString stringWithFormat:@"largefacelists/%@/persistedFaces/%@", largeFaceListId, persistedFaceId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return success
+- (NSURLSessionDataTask *)updateFaceInLargeFaceList:(NSString *)largeFaceListId persistedFaceId:(NSString *)persistedFaceId userData:(NSString *)userData completionBlock:(MPOCompletionBlock)completion {
+    return [self startTaskWithHttpMethod:@"PATCH" path:[NSString stringWithFormat:@"largefacelists/%@/persistedFaces/%@", largeFaceListId, persistedFaceId] parameters:@{@"userData" : userData} urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        [self runCompletionOnMainQueueWithBlock:completion error:error];
+    }];
+}
+
+//return Face
+- (NSURLSessionDataTask *)getFaceInLargeFaceList:(NSString *)largeFaceListId persistedFaceId:(NSString *)persistedFaceId completionBlock:(void (^)(MPOPersonFace *personFace, NSError *error))completion {
+    return [self startTaskWithHttpMethod:@"GET" path:[NSString stringWithFormat:@"largefacelists/%@/persistedFaces/%@", largeFaceListId, persistedFaceId] parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        MPOPersonFace *personFace = nil;
+        
+        if (!error) {
+            personFace = [[MPOPersonFace alloc] initWithDictionary:responseObject];
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:personFace error:error];
+    }];
+}
+
+//return Face[]
+- (NSURLSessionDataTask *)listFacesInLargeFaceListWithCompletion:(NSString *)largeFaceListId completionBlock:(MPOFaceMetadataArrayCompletionBlock)completion {
+    return [self listFacesInLargeFaceListWithStartAndTop:largeFaceListId start:nil top:1000 completionBlock:completion];
+}
+
+//return Face[]
+- (NSURLSessionDataTask *)listFacesInLargeFaceListWithStartAndTop:(NSString *)largeFaceListId start:(NSString *)start top:(NSInteger)top completionBlock:(MPOFaceMetadataArrayCompletionBlock)completion {
+    NSString * url = [NSString stringWithFormat:@"largefacelists/%@/persistedFaces?top=%ld", largeFaceListId, (long)top];
+    if (start != nil) {
+        url = [url stringByAppendingString:[NSString stringWithFormat:@"&start=%@", start]];
+    }
+    return [self startTaskWithHttpMethod:@"GET" path:url parameters:nil urlParams:nil bodyData:nil completion:^(NSURLResponse *response, id responseObject, NSError *error) {
+        
+        NSMutableArray *faceMetadataCollection = [[NSMutableArray alloc] init];
+        
+        if (!error) {
+            
+            for (id obj in responseObject) {
+                MPOFaceMetadata *faceMetadata = [[MPOFaceMetadata alloc] initWithDictionary:obj];
+                [faceMetadataCollection addObject:faceMetadata];
+            }
+        }
+        
+        [self runCompletionOnMainQueueWithBlock:completion object:faceMetadataCollection error:error];
+    }];
+}
+
 #pragma mark Helpers
 
 /*
  * =============================================================
- * ================ Helpers =================
+ * ========================== Helpers ==========================
  * =============================================================
  */
 
 - (NSURLSessionDataTask *)startTaskWithHttpMethod:(NSString *)httpMethod path:(NSString *)path parameters:(NSDictionary *)params urlParams:(NSDictionary *)urlParams bodyData:(NSData *)bodyData completion:(PORequestCompletionBlock)completion {
-    
-    NSString *basePath = @"https://api.projectoxford.ai/face/v1.0/";
     
     NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
     
@@ -567,9 +1196,9 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
                                          @"Content-Type" : @"application/octet-stream"
                                          };
     }
- 
+    
     NSURLSession *session = [NSURLSession sessionWithConfiguration:config];
-
+    
     
     //build the queryString
     
@@ -588,11 +1217,11 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
         }
     }
     
-   
-    NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@%@", basePath, path, queryString]]];
+    
+    NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@%@", self.endpoint, path, queryString]]];
     
     request.HTTPMethod = httpMethod;
-
+    
     //if there is no body data and params is not nil, assume we have JSON to encode for the body
     if (params && !bodyData) {
         NSError *error = nil;
@@ -609,7 +1238,7 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
         
         NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *) response;
         NSInteger responseStatusCode = httpResponse.statusCode;
-
+        
         if (responseStatusCode >= 200 && responseStatusCode <= 299) {
             
             NSString *contentTypeHeader = httpResponse.allHeaderFields[@"Content-Type"];
@@ -645,12 +1274,12 @@ typedef void(^PORequestCompletionBlock)(NSURLResponse *response, id responseObje
     
     [dataTask resume];
     
-
+    
     return dataTask;
 }
 
 - (void)runCompletionOnMainQueueWithBlock:(void (^) (id obj, NSError *error))completionBlock object:(id )object error:(NSError *)error {
-
+    
     dispatch_async(dispatch_get_main_queue(), ^{
         completionBlock(object, error);
     });

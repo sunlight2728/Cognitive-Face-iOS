@@ -35,5 +35,8 @@
 @interface MPOTestHelpers : NSObject
 + (NSDictionary *)detectWithDict:(NSDictionary *)dataDict;
 + (BOOL)addMultiplePersonFaces:(NSArray *)urlArray personGroupId:(NSString *)personGroupId personId:(NSString *)personId;
++ (BOOL)addMultiplePersonFaces:(NSArray *)urlArray largePersonGroupId:(NSString *)personGroupId personId:(NSString *)personId;
 + (BOOL)clearAllPersonGroups;
++ (BOOL)clearAllLargePersonGroups;
+
 @end

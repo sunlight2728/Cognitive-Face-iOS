@@ -74,7 +74,7 @@
 
     XCTestExpectation *expectation = [self expectationWithDescription:@"asynchronous request"];
     
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
     
     [client createPersonGroupWithId:kPersonGroupId name:kPersonGroupName userData:kPersonGroupUserData completionBlock:^(NSError *error) {
        
@@ -88,60 +88,62 @@
     }];
     
     [self waitForExpectationsWithTimeout:120.0 handler:nil];
+    
 }
 
 
 - (void)createChrisPerson:(XCTestExpectation *)expectation {
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
-
-    [client createPersonWithPersonGroupId:kPersonGroupId name:@"chris" userData:@"chris_userdata" completionBlock:^(MPOCreatePersonResult *createPersonResult, NSError *error) {
+    
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
+    
+    [client createPersonWithPersonGroupId:kPersonGroupId name:@"chris" userData:@"chris_userdata" completionBlock:^(MPOCreatePersonResult *createPersonResult, NSError *error){
+        
         if (error) {
             XCTFail("fail");
         }
         else {
             [self.peopleDataDict setObject:createPersonResult.personId forKey:@"chris"];
-
             [MPOTestHelpers addMultiplePersonFaces:@[kChrisImageName1, kChrisImageName2, kChrisImageName3] personGroupId:kPersonGroupId personId:createPersonResult.personId];
-            
             [self createAlbertoPerson:expectation];
         }
 
     }];
+    
 }
 
 
 - (void)createAlbertoPerson:(XCTestExpectation *)expectation {
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
+    
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
     
     [client createPersonWithPersonGroupId:kPersonGroupId name:@"alberto" userData:@"alberto_userdata" completionBlock:^(MPOCreatePersonResult *createPersonResult, NSError *error) {
+        
         if (error) {
             XCTFail("fail");
         }
         else {
             [self.peopleDataDict setObject:createPersonResult.personId forKey:@"alberto"];
-            
             [MPOTestHelpers addMultiplePersonFaces:@[kAlbertoImageName1, kAlbertoImageName2] personGroupId:kPersonGroupId personId:createPersonResult.personId];
-            
             [self createJohnPerson:expectation];
         }
         
     }];
+    
 }
 
 - (void)createJohnPerson:(XCTestExpectation *)expectation {
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
+    
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
     
     [client createPersonWithPersonGroupId:kPersonGroupId name:@"john" userData:@"john_userdata" completionBlock:^(MPOCreatePersonResult *createPersonResult, NSError *error) {
+        
         if (error) {
             XCTFail("fail");
         }
         else {
             [self.peopleDataDict setObject:createPersonResult.personId forKey:@"john"];
-            
             [MPOTestHelpers addMultiplePersonFaces:@[kJohnImageName1, kJohnImageName2] personGroupId:kPersonGroupId personId:createPersonResult.personId];
-            
             [self trainGroup:expectation];
-            
         }
         
     }];
@@ -149,9 +151,11 @@
 }
 
 - (void)trainGroup:(XCTestExpectation *)expectation {
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
-
+    
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
+    
     [client trainPersonGroupWithPersonGroupId:kPersonGroupId completionBlock:^(NSError *error) {
+        
         if (error) {
             XCTFail("fail");
         }
@@ -162,6 +166,7 @@
     }];
     
 }
+
 - (void)checkTrainingStatus:(XCTestExpectation *)expectation {
     self.waitingTimer = [NSTimer scheduledTimerWithTimeInterval:3.0 target:self selector:@selector(trainingStatusCheck:) userInfo:expectation repeats: YES];
 }
@@ -170,7 +175,7 @@
 {
     XCTestExpectation *expectation = timer.userInfo;
     
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
     
     [client getPersonGroupTrainingStatusWithPersonGroupId:kPersonGroupId completionBlock:^(MPOTrainingStatus *trainingStatus, NSError *error) {
         
@@ -179,12 +184,9 @@
         }
         else {
             if ([trainingStatus.status isEqualToString:@"succeeded"]) {
-                
                 [self.waitingTimer invalidate];
-                
                 [self identify:expectation];
             }
-            
         }
         
     }];
@@ -193,8 +195,8 @@
 
 - (void)identify:(XCTestExpectation *)expectation {
     
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
-
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
+    
     [client identifyWithPersonGroupId:kPersonGroupId faceIds:[[NSArray alloc] initWithObjects:self.testDataDict[@"chris3"], self.testDataDict[@"alberto2"], nil] maxNumberOfCandidates:4 completionBlock:^(NSArray *collection, NSError *error) {
         
         if (error) {
@@ -202,28 +204,23 @@
         }
         else {
             XCTAssertEqual(collection.count, 2);
-
             for (MPOIdentifyResult *result in collection) {
-
                 if ([result.faceId isEqualToString:self.testDataDict[@"chris3"]]) {
-                    
                     for (MPOCandidate *candidate in result.candidates) {
                         XCTAssertEqualObjects(candidate.personId, self.peopleDataDict[@"chris"]);
                     }
                 }
                 else if ([result.faceId isEqualToString:self.testDataDict[@"alberto2"]]) {
-                    
                     for (MPOCandidate *candidate in result.candidates) {
                         XCTAssertEqualObjects(candidate.personId, self.peopleDataDict[@"alberto"]);
                     }
                 }
             }
-            
         }
-        
         [expectation fulfill];
         
     }];
     
 }
+
 @end

@@ -42,7 +42,6 @@
 
 - (void)setUp {
     [super setUp];
-    
     // Put setup code here. This method is called before the invocation of each test method in the class.
 }
 
@@ -51,7 +50,7 @@
     
     __block BOOL finished = NO;
     
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
         
     [client deleteFaceListWithFaceListId:kFaceListName name:@"chrisfacelistname" userData:@"chrisfacelistuserdata" completionBlock:^(NSError *error) {
         
@@ -69,12 +68,13 @@
     }
     
     [super tearDown];
+    
 }
 
 - (void)testCreateFaceList {
     XCTestExpectation *expectation = [self expectationWithDescription:@"asynchronous request"];
     
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
     
     [client createFaceListWithFaceListId:kFaceListName name:@"chrisfacelistname" userData:@"chrisfacelistuserdata" completionBlock:^(NSError *error) {
        
@@ -93,8 +93,8 @@
 
 - (void)addFirstFaceToFaceList:(XCTestExpectation *)expectation {
     
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
-
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
+    
     [client addFacesToFaceListWithFaceListId:kFaceListName data:UIImageJPEGRepresentation([UIImage imageNamed:kChrisImageName1], 1.0) userData:@"chrisfacelistuserdata1" faceRectangle:nil completionBlock:^(MPOAddPersistedFaceResult *addPersistedFaceResult, NSError *error) {
        
         if (error) {
@@ -104,14 +104,13 @@
             [self addSecondFaceToFaceList:expectation];
         }
         
-        
     }];
     
 }
 
 - (void)addSecondFaceToFaceList:(XCTestExpectation *)expectation {
     
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
     
     [client addFacesToFaceListWithFaceListId:kFaceListName data:UIImageJPEGRepresentation([UIImage imageNamed:kChrisImageName2], 1.0) userData:@"chrisfacelistuserdata2" faceRectangle:nil completionBlock:^(MPOAddPersistedFaceResult *addPersistedFaceResult, NSError *error) {
         
@@ -121,14 +120,14 @@
         else {
             [self listFaceLists:expectation];
         }
+        
     }];
     
 }
 
-
 - (void)listFaceLists:(XCTestExpectation *)expectation {
     
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
     
     [client listFaceListsWithCompletion:^(NSArray<MPOFaceListMetadata *> *collection, NSError *error) {
         
@@ -136,41 +135,32 @@
             XCTFail();
         }
         else {
-            
             XCTAssertEqual(collection.count, 1);
-            
             for (MPOFaceListMetadata *faceListMetadata in collection) {
                 XCTAssertEqualObjects(faceListMetadata.faceListId, kFaceListName);
             }
-            
             [self getFaceList:expectation];
         }
         
     }];
     
-    
 }
-
 
 - (void)getFaceList:(XCTestExpectation *)expectation {
     
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
-
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
+    
     [client getFaceListWithFaceListId:kFaceListName completionBlock:^(MPOFaceList *faceList, NSError *error) {
        
         if (error) {
             XCTFail();
         }
         else {
-            
             XCTAssertEqualObjects(faceList.faceListId, kFaceListName);
-            
             XCTAssertEqual(faceList.persistedFaces.count, 2);
-
             for (MPOFaceMetadata *faceMetadata in faceList.persistedFaces) {
                 XCTAssertTrue([faceMetadata.userData containsString:@"chrisfacelistuserdata"]);
             }
-            
             [expectation fulfill];
         }
         

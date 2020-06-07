@@ -42,7 +42,6 @@
 - (void)setUp {
     [super setUp];
     // Put setup code here. This method is called before the invocation of each test method in the class.
-    
 }
 
 - (void)tearDown {
@@ -53,16 +52,13 @@
 
 - (void)testVerify {
     XCTestExpectation *expectation = [self expectationWithDescription:@"asynchronous request"];
-    
     [self detectFirstImage:expectation];
-    
     [self waitForExpectationsWithTimeout:10.0 handler:nil];
-
 }
 
 - (void)detectFirstImage:(XCTestExpectation *)expectation {
     
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
     
     [client detectWithData:UIImageJPEGRepresentation([UIImage imageNamed:kChrisImageName1], 1.0) returnFaceId:YES returnFaceLandmarks:NO returnFaceAttributes:nil completionBlock:^(NSArray<MPOFace *> *collection, NSError *error) {
        
@@ -71,13 +67,10 @@
         }
         else {
             XCTAssertEqual(collection.count, 1);
-            
             for (MPOFace *face in collection) {
                 self.testFirstFaceId = face.faceId;
             }
-            
         }
-        
         [self detectSecondImage:expectation];
         
     }];
@@ -85,7 +78,8 @@
 }
 
 - (void)detectSecondImage:(XCTestExpectation *)expectation {
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
+    
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
     
     [client detectWithData:UIImageJPEGRepresentation([UIImage imageNamed:kChrisImageName2], 1.0) returnFaceId:YES returnFaceLandmarks:NO returnFaceAttributes:nil completionBlock:^(NSArray<MPOFace *> *collection, NSError *error) {
         
@@ -94,22 +88,21 @@
         }
         else {
             XCTAssertEqual(collection.count, 1);
-            
             for (MPOFace *face in collection) {
                 self.testSecondFaceId = face.faceId;
             }
-            
         }
-        
         [self startVerify:expectation];
 
     }];
+    
 }
 
 
 - (void)startVerify:(XCTestExpectation *)expectation {
-    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithSubscriptionKey:kOxfordApiKey];
-  
+    
+    MPOFaceServiceClient *client = [[MPOFaceServiceClient alloc] initWithEndpointAndSubscriptionKey:kOxfordApiEndPoint key:kOxfordApiKey];
+    
     [client verifyWithFirstFaceId:self.testFirstFaceId faceId2:self.testSecondFaceId completionBlock:^(MPOVerifyResult *verifyResult, NSError *error) {
        
         if (error) {
@@ -118,11 +111,10 @@
         else {
             XCTAssertTrue(verifyResult.isIdentical);
         }
-        
         [expectation fulfill];
         
     }];
+    
 }
-
 
 @end
